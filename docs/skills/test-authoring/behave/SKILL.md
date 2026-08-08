@@ -79,9 +79,21 @@ output — for example `ujust bios-info` prints `Manufacturer:` / `Release Date:
 labels itself, so checking for raw `dmidecode` keys like `Vendor` is brittle.
 
 If a recipe is gated by `gum choose`, `pkexec`, or package-install side effects,
-land the coverage as `@pending @wip` until a non-interactive harness exists.
-Current example: `ujust toggle-updates` is interactive and flips `uupd.timer`
-or `rpm-ostreed-automatic.timer` (not `ublue-update.timer`).
+land the coverage as `@pending @wip` until a non-interactive harness exists. If
+the recipe just flips a well-known system unit (a systemd timer, a service),
+prefer testing that target directly over SSH instead of leaving the scenario
+`@pending` — see `ujust toggle-updates` below for the pattern.
+
+`ujust toggle-updates` always shows an interactive `gum choose` menu (or, on
+bctl-equipped images, launches a GUI panel) and has no non-interactive flag, so
+it can never be driven from a `Run SSH command` step. It flips `uupd.timer` or
+`rpm-ostreed-automatic.timer` (not `ublue-update.timer`) — verify with
+`systemctl cat -- uupd.timer` first since the timer name varies by image
+version. `tests/common/features/common_ujust.feature` covers this by toggling
+the target timer directly with `sudo -n systemctl enable/disable` (see
+`sudo_rs.feature` for why `-n` is safe/non-interactive for wheel users) and
+restoring the original state so the scenario stays repeatable, rather than
+invoking the recipe itself.
 
 ### uupd conditional suppression coverage
 

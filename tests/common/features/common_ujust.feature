@@ -19,9 +19,14 @@ Feature: Bluefin common ujust recipes
     * SSH command return code is "0"
     * SSH command output contains "Manufacturer"
 
-  @pending @wip
-  Scenario: ujust toggle-updates flips the automatic update timer
-    * Run SSH command: "if systemctl cat -- uupd.timer >/dev/null 2>&1; then TIMER=uupd.timer; else TIMER=rpm-ostreed-automatic.timer; fi; before=$(systemctl is-enabled \"$TIMER\" || true); ujust toggle-updates; after=$(systemctl is-enabled \"$TIMER\" || true); test \"$before\" != \"$after\""
+  # ujust toggle-updates always shows an interactive `gum choose` menu (or, on
+  # bctl-equipped images, launches a GUI panel) and cannot be driven
+  # non-interactively — see docs/skills/test-authoring/behave/SKILL.md. Exercise
+  # the same target the recipe manipulates (uupd.timer, falling back to
+  # rpm-ostreed-automatic.timer) directly via systemctl instead, then restore
+  # the original enabled/disabled state so the scenario is repeatable.
+  Scenario: toggle-updates target timer flips and restores via systemctl
+    * Run SSH command: "TIMER=uupd.timer; systemctl cat -- \"$TIMER\" >/dev/null 2>&1 || TIMER=rpm-ostreed-automatic.timer; before=$(systemctl is-enabled \"$TIMER\" 2>/dev/null || true); if [ \"$before\" = enabled ]; then sudo -n systemctl disable \"$TIMER\"; else sudo -n systemctl enable \"$TIMER\"; fi; after=$(systemctl is-enabled \"$TIMER\" 2>/dev/null || true); if [ \"$before\" = enabled ]; then sudo -n systemctl enable \"$TIMER\"; else sudo -n systemctl disable \"$TIMER\"; fi; restored=$(systemctl is-enabled \"$TIMER\" 2>/dev/null || true); test \"$before\" != \"$after\" && test \"$restored\" = \"$before\""
     * SSH command return code is "0"
 
   @quarantine
